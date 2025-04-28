@@ -7,6 +7,8 @@ import os
 SETTINGS_FILE = "TextPastryAddons.sublime-settings"
 
 def is_numeric(s):
+    if s is None:
+        return False
     try:
         int(s)
         return True
@@ -36,7 +38,8 @@ class TextPastryFocusCommand(sublime_plugin.WindowCommand):
             # focus mode enabled
             run('hide_panel', {'cancel': True})
 class TextPastryPanelListener(sublime_plugin.EventListener):
-    listener = ['toggle_side_bar', 'toggle_status_bar', 'toggle_tabs', 'toggle_minimap']
+    #listener = ['toggle_side_bar', 'toggle_status_bar', 'toggle_tabs', 'toggle_minimap']
+    listener = []
     running = False
     visibility = {}
     def on_window_command(self, window, command, args):

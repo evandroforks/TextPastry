@@ -15,12 +15,15 @@ import shlex
 import unittest
 import itertools
 from os.path import expanduser, normpath, join, isfile
+from decimal import *
 
 
 SETTINGS_FILE = "TextPastry.sublime-settings"
 
 
 def is_numeric(s):
+    if s is None:
+        return False
     try:
         int(s)
         return True
@@ -760,19 +763,24 @@ class TextPastryRangeParserCommand(sublime_plugin.TextCommand):
         result = RangeCommandParser(text).parse()
         self.view.run_command(result['command'], result['args'])
 class TextPastryRangeCommand(sublime_plugin.TextCommand):
-    def run(self, edit, start=0, stop=None, step=1, padding=1, fillchar='0', justify=None,
+    def run(self, edit, start=None, stop=None, step=1, padding=1, fillchar='0', justify=None,
             align=None, prefix=None, suffix=None, repeat_increment=None, loop=None, **kwargs):
         print('found range command', start, stop, step)
-        start = int(start) if start else 0
-        step = int(step) if step else 1
-        stop = int(stop) if stop else None
-        padding = int(padding) if padding else 0
+        start = int(start) if is_numeric(start) else None
+        stop = int(stop) if is_numeric(stop) else None
+        step = int(step) if is_numeric(step) else 1
+        padding = int(padding) if is_numeric(padding) else 0
         # duplicate lines and add to selection on repeat
         if stop is not None:
+            if start is None:
+                if stop == 1:
+                    start = len(self.view.sel())
+                elif stop == 0:
+                    start = len(self.view.sel()) - 1
             multiplier = 1
-            if repeat_increment:
+            if is_numeric(repeat_increment):
                 multiplier *= int(repeat_increment)
-            if loop:
+            if is_numeric(loop):
                 multiplier *= int(loop)
             repeat = len(range(start, stop, step))
             if multiplier > 1:
@@ -780,6 +788,8 @@ class TextPastryRangeCommand(sublime_plugin.TextCommand):
             sel = self.view.sel()
             if len(sel) == 1:
                 TextPastryTools.duplicate(self.view, edit, sel[0], repeat)
+        if start is None:
+            start = 0
         # adjust stop if none was given
         if stop is None:
             stop = start + (len(self.view.sel()) + 1) * step
@@ -811,10 +821,362 @@ class TextPastryRangeCommand(sublime_plugin.TextCommand):
         else:
             return just(s, padding, fillchar)
 
+class TextPastryBinCommand(sublime_plugin.TextCommand):
+    def run(self, edit, start=None, stop=None, step=1, padding=1, fillchar='0', justify=None,
+            align=None, prefix=None, suffix=None, repeat_increment=None, loop=None, **kwargs):
+        print('found bin command', start, stop, step)
+        start = int(start) if is_numeric(start) else None
+        stop = int(stop) if is_numeric(stop) else None
+        step = int(step) if is_numeric(step) else 1
+        padding = int(padding) if is_numeric(padding) else 0
+        # duplicate lines and add to selection on repeat
+        if stop is not None:
+            if start is None:
+                if stop == 1:
+                    start = len(self.view.sel())
+                elif stop == 0:
+                    start = len(self.view.sel()) - 1
+            multiplier = 1
+            if is_numeric(repeat_increment):
+                multiplier *= int(repeat_increment)
+            if is_numeric(loop):
+                multiplier *= int(loop)
+            repeat = len(range(start, stop, step))
+            if multiplier > 1:
+                repeat = (repeat + 1) * multiplier - 1
+            sel = self.view.sel()
+            if len(sel) == 1:
+                TextPastryTools.duplicate(self.view, edit, sel[0], repeat)
+        if start is None:
+            start = 0
+        # adjust stop if none was given
+        if stop is None:
+            stop = start + (len(self.view.sel()) + 1) * step
+        if global_settings('range_include_end_index', True):
+            stop += step
+        # if stop is negative, step needs to be negative aswell
+        if (start > stop and step > 0):
+            step = step * -1
+        items = [str(bin(x)).split("b")[1] for x in range(start, stop, step)]
+        if repeat_increment and repeat_increment > 0:
+            tmp = items
+            items = []
+            for val in tmp:
+                for x in range(repeat_increment):
+                    items.append(val)
+        if padding > 1:
+            fillchar = fillchar if fillchar is not None else '0'
+            just = str.ljust if justify == 'left' else str.rjust
+            items = [self.pad(x, just, padding, fillchar) for x in items]
+        # apply prefix/suffix
+        if prefix:
+            items = [prefix + x for x in items]
+        if suffix:
+            items = [x + suffix for x in items]
+        self.view.run_command("text_pastry_insert_text", {"items": items, "align": align})
+    def pad(self, s, just, padding, fillchar):
+        if s.startswith('-'):
+            return '-' + just(s[1:], padding, fillchar)
+        else:
+            return just(s, padding, fillchar)
+
+class TextPastryDecimalRangeCommand(sublime_plugin.TextCommand):
+    def run(self, edit, start=None, stop=None, step=1, padding=1, fillchar='0', justify=None,
+            align=None, prefix=None, suffix=None, repeat_increment=None, loop=None, precision=0,
+            **kwargs):
+        print('found range command', start, stop, step, padding, precision, justify)
+        start = Decimal(start) if self.is_decimal(start) else None
+        stop = Decimal(stop) if self.is_decimal(stop) else None
+        step = Decimal(step) if self.is_decimal(step) else 1
+        padding = int(padding) if is_numeric(padding) else 0
+        precision = int(precision) if is_numeric(precision) else 0
+        # duplicate lines and add to selection on repeat
+        if stop is not None:
+            if start is None:
+                if stop == 1:
+                    start = Decimal(len(self.view.sel()))
+                elif stop == 0:
+                    start = Decimal(len(self.view.sel()) - 1)
+            multiplier = 1
+            if is_numeric(repeat_increment):
+                multiplier *= repeat_increment
+            if is_numeric(loop):
+                multiplier *= loop
+            repeat = len(list(self.drange(start, stop, step)))
+            if multiplier > 1:
+                repeat = (repeat + 1) * multiplier - 1
+            sel = self.view.sel()
+            if len(sel) == 1:
+                TextPastryTools.duplicate(self.view, edit, sel[0], repeat)
+        if start is None:
+            start = Decimal(0)
+        # adjust stop if none was given
+        if stop is None:
+            stop = start + Decimal(len(self.view.sel()) + 1) * step
+        if global_settings('range_include_end_index', True):
+            stop += step
+        items = [x for x in self.drange(start, stop, step)]
+        if repeat_increment and repeat_increment > 0:
+            tmp = items
+            items = []
+            for val in tmp:
+                for x in range(repeat_increment):
+                    items.append(val)
+        print('range command args', start, stop, step, "items", items)
+        if precision > 1:
+            items = ["{:.{}f}".format(x, precision) for x in items]
+            if not justify:
+                justify = 'right'
+        if padding > 1:
+            fillchar = fillchar if fillchar is not None else '0'
+            just = str.ljust if justify == 'left' else str.rjust
+            items = [self.pad(str(x), just, padding, fillchar) for x in items]
+        # apply prefix/suffix
+        if prefix:
+            items = [prefix + x for x in items]
+        if suffix:
+            items = [x + suffix for x in items]
+        # make sure we deliver strings
+        items = [str(x) for x in items]
+        self.view.run_command("text_pastry_insert_text", {"items": items, "align": align})
+    def pad(self, s, just, padding, fillchar):
+        if s.startswith('-'):
+            return '-' + just(s[1:], padding, fillchar)
+        else:
+            return just(s, padding, fillchar)
+    def drange(self, start, stop, step):
+        r = start
+        if start <= stop:
+            while r <= stop:
+                yield r
+                r += getcontext().abs(step)
+        if start > stop:
+            while r >= stop:
+                yield r
+                r -= getcontext().abs(step)
+    def is_decimal(self, s):
+        if s is None:
+            return False
+        try:
+            Decimal(s)
+            return True
+        except ValueError:
+            return False
+
+class TextPastryDecimalGeometricSequenceCommand(sublime_plugin.TextCommand):
+    def run(self, edit, start=None, stop=None, faktor=2, padding=1, fillchar='0', justify=None,
+            align=None, prefix=None, suffix=None, repeat_increment=None, loop=None, precision=0,
+            **kwargs):
+        print('found faktor command', start, stop, faktor, padding, precision, justify)
+        start = Decimal(start) if self.is_decimal(start) else None
+        stop = Decimal(stop) if self.is_decimal(stop) else None
+        faktor = Decimal(faktor) if self.is_decimal(faktor) else 1
+        padding = int(padding) if is_numeric(padding) else 0
+        precision = int(precision) if is_numeric(precision) else 0
+        # duplicate lines and add to selection on repeat
+        if stop is not None:
+            if start is None:
+                if stop == 1:
+                    start = Decimal(len(self.view.sel()))
+                elif stop == 0:
+                    start = Decimal(len(self.view.sel()) - 1)
+            multiplier = 1
+            if is_numeric(repeat_increment):
+                multiplier *= repeat_increment
+            if is_numeric(loop):
+                multiplier *= loop
+            repeat = len(list(self.gsequence(start, stop, faktor)))
+            if multiplier > 1:
+                repeat = (repeat + 1) * multiplier - 1
+            sel = self.view.sel()
+            if len(sel) == 1:
+                TextPastryTools.duplicate(self.view, edit, sel[0], repeat)
+        if start is None:
+            start = Decimal(1)
+        # adjust stop if none was given
+        if stop is None:
+            stop = start + Decimal(len(self.view.sel()) + 1) * faktor
+        if global_settings('range_include_end_index', True):
+            stop *= faktor
+        items = [x for x in self.gsequence(start, stop, faktor)]
+        if repeat_increment and repeat_increment > 0:
+            tmp = items
+            items = []
+            for val in tmp:
+                for x in range(repeat_increment):
+                    items.append(val)
+        print('faktor command args', start, stop, faktor, "items", items)
+        if precision > 1:
+            items = ["{:.{}f}".format(x, precision) for x in items]
+            if not justify:
+                justify = 'right'
+        if padding > 1:
+            fillchar = fillchar if fillchar is not None else '0'
+            just = str.ljust if justify == 'left' else str.rjust
+            items = [self.pad(str(x), just, padding, fillchar) for x in items]
+        # apply prefix/suffix
+        if prefix:
+            items = [prefix + x for x in items]
+        if suffix:
+            items = [x + suffix for x in items]
+        # make sure we deliver strings
+        items = [str(x) for x in items]
+        self.view.run_command("text_pastry_insert_text", {"items": items, "align": align})
+    def pad(self, s, just, padding, fillchar):
+        if s.startswith('-'):
+            return '-' + just(s[1:], padding, fillchar)
+        else:
+            return just(s, padding, fillchar)
+    def gsequence(self, start, stop, faktor):
+        r = start
+        if start == 0:
+            return
+        if faktor > 1:
+            if start <= stop:
+                while r <= stop:
+                    yield r
+                    r = r*getcontext().abs(faktor)
+            if start > stop:
+                while r >= stop:
+                    yield r
+                    r = r/getcontext().abs(faktor)
+        elif 0 < faktor < 1:
+            if start > stop:
+                while r >= stop:
+                    yield r
+                    r = r*getcontext().abs(faktor)
+            if start <= stop:
+                while r <= stop:
+                    yield r
+                    r = r/getcontext().abs(faktor)
+    def is_decimal(self, s):
+        if s is None:
+            return False
+        try:
+            Decimal(s)
+            return True
+        except ValueError:
+            return False
+
+
+class TextPastryHexRangeCommand(sublime_plugin.TextCommand):
+    def run(self, edit, start=0, stop=None, step=None, width=2,
+        repeat_increment=None, loop=None, prefix='0x', hexFormatFlag='x', **kwargs):
+        print('found hex range command', start, stop, step)
+        start = int(start, 16) if self.is_hex(start) else 0
+        stop = int(stop, 16) if self.is_hex(stop) else None
+        # check if steps are in hexadecimal notation
+        # use numeric otherwise
+        step = int(step, 16) if self.is_hex(step) else None
+        step = step if is_numeric(step) else 1
+        width = int(width) if is_numeric(width) else 2
+        # duplicate lines and add to selection on repeat
+        if stop is not None:
+            multiplier = 1
+            if is_numeric(repeat_increment):
+                multiplier *= int(repeat_increment)
+            if is_numeric(loop):
+                multiplier *= int(loop)
+            repeat = len(list(self.hrange(start, stop, step)))
+            if multiplier > 1:
+                repeat = (repeat + 1) * multiplier - 1
+            sel = self.view.sel()
+            if len(sel) == 1:
+                TextPastryTools.duplicate(self.view, edit, sel[0], repeat)
+        # adjust stop if none was given
+        if stop is None:
+            stop = start + (len(self.view.sel()) + 1) * step
+        if global_settings('range_include_end_index', True):
+            stop += step
+        items = [x for x in self.hrange(start, stop, step)]
+        if repeat_increment and repeat_increment > 0:
+            tmp = items
+            items = []
+            for val in tmp:
+                for x in range(repeat_increment):
+                    items.append(val)
+        # make sure we print in hex
+        items = [prefix + '{:0{}}'.format(x, str(width) + hexFormatFlag) for x in items]
+        self.view.run_command("text_pastry_insert_text", {"items": items})
+    def hrange(self, start, stop, step):
+        r = start
+        if start <= stop:
+            while r <= stop:
+                yield r
+                r += step
+        if start > stop:
+            while r >= stop:
+                yield r
+                r -= step
+    def is_hex(self, s):
+        if s is None:
+            return False
+        try:
+            int(s, 16)
+            return True
+        except ValueError:
+            return False
+
+
+class TextPastryRomanCommand(sublime_plugin.TextCommand):
+    ints = (1000, 900, 500, 400, 100, 90, 50, 40, 10, 9, 5, 4, 1)
+    nums = ('M',  'CM', 'D', 'CD','C', 'XC','L','XL','X','IX','V','IV','I')
+    def run(self, edit, start=1, stop=None, step=None,
+        repeat_increment=None, loop=None, lowercase=False):
+        start = int(start) if is_numeric(start) else None
+        stop = int(stop) if is_numeric(stop) else None
+        step = int(step) if is_numeric(step) else 1
+        # duplicate lines and add to selection on repeat
+        if stop is not None:
+            if start is None:
+                if stop == 1:
+                    start = len(self.view.sel())
+                elif stop == 0:
+                    start = len(self.view.sel()) - 1
+            multiplier = 1
+            if is_numeric(repeat_increment):
+                multiplier *= int(repeat_increment)
+            if is_numeric(loop):
+                multiplier *= int(loop)
+            repeat = len(range(start, stop, step))
+            if multiplier > 1:
+                repeat = (repeat + 1) * multiplier - 1
+            sel = self.view.sel()
+            if len(sel) == 1:
+                TextPastryTools.duplicate(self.view, edit, sel[0], repeat)
+        # adjust stop if none was given
+        if stop is None:
+            stop = start + (len(self.view.sel()) + 1) * step
+        # Roman value caps
+        start = start if start > 0 else 1
+        stop = stop if stop < 4000 else 3999
+        # adjust if include end
+        if global_settings('range_include_end_index', True):
+            stop += step
+        items = [self.roman_numeral(r, lowercase) for r in range(start, stop, step)]
+        if repeat_increment and repeat_increment > 0:
+            tmp = items
+            items = []
+            for val in tmp:
+                for x in range(repeat_increment):
+                    items.append(val)
+        self.view.run_command("text_pastry_insert_text", {"items": items})
+    def roman_numeral(self, value, lowercase):
+        if not 0 < value < 4000:
+            return ''
+        result = []
+        for index, int_value in enumerate(self.ints):
+            count = int(value / int_value)
+            result.append(self.nums[index] * count)
+            value -= int_value * count
+        roman = ''.join(result)
+        if lowercase: roman = roman.lower()
+        return roman
+
 
 class TextPastryRedoCommand(sublime_plugin.WindowCommand):
     def run(self):
-        hs = sublime.load_settings(TextPastryHistory.file_name)
+        hs = sublime.load_settings("TextPastryHistory.sublime-settings")
         item = hs.get("last_command", {})
         if item and "command" in item and "text" in item and item["command"] and item["text"]:
             text = item.get("text")
@@ -1070,9 +1432,9 @@ class Parser(object):
         return result
     def parse_command(self, text):
         result = None
-        buildin_commands = sublime.load_settings('TextPastryCommands.json')
+        builtin_commands = sublime.load_settings('TextPastryCommands.json')
         cmd_shortcuts = global_settings('commands', [])
-        cmd_shortcuts.extend(buildin_commands.get('commands', []))
+        cmd_shortcuts.extend(builtin_commands.get('commands', []))
         for item in cmd_shortcuts:
             # if parser
             if 'parser' in item:
@@ -1096,14 +1458,16 @@ class Parser(object):
         return result
     def parse_preset(self, input_text):
         result = None
-        buildin_presets = sublime.load_settings('TextPastryPresets.json')
-        presets = buildin_presets.get('presets', {})
+        builtin_presets = sublime.load_settings('TextPastryPresets.json')
+        presets = builtin_presets.get('presets', {})
         presets.update(global_settings('presets', {}))
         name, start, end, options = PresetCommandParser(input_text).parse()
         if name in presets:
             items = presets[name]
             if 'repeat' not in options:
                 options['repeat'] = global_settings('repeat_preset', True)
+            if 'to_upper_case' not in options:
+                options['to_upper_case'] = start and start.isupper()
             if start or end:
                 items = self.create_preset_command(start, end, options, items)
             items = self.format(items, options)
@@ -1131,12 +1495,12 @@ class Parser(object):
             start = int(start)
         elif start:
             lower_items = [x.lower() for x in items]
-            start = lower_items.index(start) if start in lower_items else None
+            start = lower_items.index(start.lower()) if start.lower() in lower_items else None
             zero_based = start is not None
         if end and is_numeric(end):
             end = int(end)
         elif end:
-            end = lower_items.index(end) if end in lower_items else None
+            end = lower_items.index(end.lower()) if end.lower() in lower_items else None
             zero_based = end is not None
         if not zero_based and not settings().get('preset_zero_based_index', False):
             if start and start > 0:
@@ -1283,9 +1647,9 @@ class PresetCommandParser(OptionsParser):
                 # first will always be the name of the preset
                 name = arg
             elif start is None:
-                start = arg.lower()
+                start = arg
             elif end is None:
-                end = arg.lower()
+                end = arg
             else:
                 remains.append(arg)
         if remains:

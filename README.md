@@ -75,8 +75,10 @@ See also:
 - Duplicate values for pasting _(1, 1, 2, 2, 3, 3, 4, 4)_ or _(a, a, a, b, b, b, c, c, c)_
 
 ## What's new ##
-- 1.5.1: Bugfix release for Find by regex [#56](https://github.com/duydao/Text-Pastry/issues/56) - Thanks [@timLinscott]
-- 1.5.0: [New Features!](https://github.com/duydao/Text-Pastry/blob/master/RELEASENOTES.md)
+- 1.6.1: Fix "Pipe into selection" bug (#78)
+- 1.6.0: [New features!](https://github.com/duydao/Text-Pastry/blob/master/RELEASENOTES.md) Support for decimal and hexadecimal ranges - Thanks to [@SmartManoj](https://github.com/SmartManoj), [@miusuncle](https://github.com/miusuncle), [@sagunkho](https://github.com/sagunkho), [@slhck](https://github.com/slhck) and [@charleskawczynski](https://github.com/charleskawczynski)
+- 1.5.1: Bugfix release for Find by regex [#56](https://github.com/duydao/Text-Pastry/issues/56) - Thanks [@timLinscott](https://github.com/timLinscott)
+- 1.5.0: [New features!](https://github.com/duydao/Text-Pastry/blob/master/RELEASENOTES.md)
 - 1.4.10: Scroll into view on search / after find [#33](https://github.com/duydao/Text-Pastry/issues/33) - Thanks again [@miusuncle](https://github.com/miusuncle)
 - 1.4.9: Bugfix release for uuid x10 [#31](https://github.com/duydao/Text-Pastry/issues/31) - Thanks [@miusuncle](https://github.com/miusuncle)
 - 1.4.8: Added support for repeating increments [#29](https://github.com/duydao/Text-Pastry/issues/29) - Thanks [@mkruselj](https://github.com/mkruselj)
@@ -130,7 +132,7 @@ __in alphabetical order__
 
 The MIT License (MIT)
 
-Copyright (c) 2016 Duy Dao, https://github.com/duydao/Text-Pastry
+Copyright (c) 2019 Duy Dao, https://github.com/duydao/Text-Pastry
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -155,5 +157,5 @@ THE SOFTWARE.
 
 For further information, please take the time to look at following links:
 
-* Sublime Text 3: http://www.sublimetext.com/3/
+* Sublime Text: http://www.sublimetext.com/
 * Sublime Package Control: https://sublime.wbond.net/installation

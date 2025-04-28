@@ -10,6 +10,8 @@ import uuid
 SETTINGS_FILE = "TextPastry.sublime-settings"
 
 def is_numeric(s):
+    if s is None:
+        return False
     try:
         int(s)
         return True
@@ -548,7 +550,7 @@ class TextPastryUpdateViewCommand(sublime_plugin.TextCommand):
 
 
 class TextPastryPasteGunMultiSelectCommand(sublime_plugin.TextCommand):
-    def run(self, edit, separator=None, rotate=False, repeat=True, keep_selection=None):
+    def run(self, edit, separator=None, rotate=True, repeat=True, keep_selection=True):
         if TextPastryPasteGunCommand.index is None:
             TextPastryPasteGunCommand.index = 0
         for idx, region in enumerate(self.view.sel()):

@@ -1,3 +1,76 @@
+# Release Notes 1.6.2
+- Fix #84 by changing the default keybindings for windows (#84)
+- Fix toggle_sidebar keybindings bug (#93)
+
+The legacy keybindings for windows can be added to the default keybindings (Preferences -> Key Bindings) file if requried:
+
+```
+[
+    { "keys": ["ctrl+alt+n"], "command": "text_pastry_show_command_line", "args": { "text": "" } },
+    { "keys": ["ctrl+alt+t"], "command": "text_pastry_show_menu" },
+    { "keys": ["ctrl+alt+v"], "command": "text_pastry_insert_text", "args": { "clipboard": true, "separator": "\\n" } },
+    { "keys": ["ctrl+alt+b"], "command": "text_pastry_redo" },
+    ...
+]
+```
+
+# Release Notes 1.6.1
+
+- Fix "Pipe into selection" bug (#71)
+
+# Release Notes 1.6.0
+
+We've added a couple of new features and fixed some bugs. All changes are listed at the [1.6.1 Milestone page](https://github.com/duydao/Text-Pastry/milestone/14?closed=1)
+
+## Sublime Text Command Palette:
+There are two new options in the command palette:
+`From X To 0` and `From X To 1` will generate a decrementing list, ending, according to our selection, at `0` or `1`.
+
+## Text Pastry Command Line
+We've added two new commands to the Text Pastry command line. All supported commands and aliases are listed in the [Text Pastry Commands](https://github.com/duydao/Text-Pastry/blob/master/config/TextPastryCommands.json) config file
+
+### Decimal ranges
+
+Use the following command to generate decimal list
+`dec <start> <stop> [step] [padding] [precision] [fillchar]`
+
+for example:
+`dec 1.25 3 0.25` will generate the following list:
+
+```
+1.25
+1.50
+1.75
+2.00
+2.25
+2.50
+2.75
+3.00
+```
+
+Text Pastry will reverse the list when start is lower than stop.
+
+### Hex ranges
+
+Use the following command to generate hexadecimal list
+`hex <start> <stop> [step] [width]`
+
+for example:
+`hex 1.25 3 0.25` will generate the following list:
+
+```
+1.25
+1.50
+1.75
+2.00
+2.25
+2.50
+2.75
+3.00
+```
+
+Text Pastry will reverse the list when start is lower than stop.
+
 # Release Notes 1.5.1
 
 Fixed the ```Find by regex``` command (#56)
